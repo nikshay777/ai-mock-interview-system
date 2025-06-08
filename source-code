@@ -1,0 +1,50 @@
+import csv
+import random
+from textblob import TextBlob
+from sentence_transformers import SentenceTransformer, util
+import nltk
+
+nltk.download('punkt')
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+questions = []
+with open('interview_questions.csv', 'r', encoding='utf-8') as file:
+    reader = csv.DictReader(file)
+    for row in reader:
+        questions.append((row['question'], row['ideal_answer']))
+
+first_five = questions[:5]
+remaining = questions[5:]
+random.shuffle(remaining)
+final_questions = first_five + remaining
+
+print(" Welcome to AI Mock Interview Bot!\n")
+
+total_score = 0
+
+for i, (question, ideal_answer) in enumerate(final_questions):
+    print(f"Q{i+1}: {question}")
+    user_answer = input("Your Answer: ")
+
+    embeddings = model.encode([user_answer, ideal_answer])
+    similarity_score = util.cos_sim(embeddings[0], embeddings[1]).item() * 10
+
+    blob = TextBlob(user_answer)
+    corrected = blob.correct()
+    grammar_score = max(0, 10 - len(corrected.words) + len(blob.words))
+
+    final_score = (similarity_score + grammar_score) / 2
+    total_score += final_score
+
+    print(f" Similarity Score: {similarity_score:.2f}/10")
+    print(f" Grammar Score: {grammar_score:.2f}/10")
+    print(f"✅ Final Score: {final_score:.2f}/10\n")
+
+average_score = total_score / len(final_questions)
+print(f"Final Interview Score: {average_score:.2f}/10")
+
+if average_score > 7:
+    print("✅ Great job! You're interview-ready.")
+else:
+    print(" Needs improvement. Keep practicing and refining your answers.")
